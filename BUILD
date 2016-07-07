@@ -231,6 +231,7 @@ cc_library(
         # AUTOGEN(protoc_lib_srcs)
         "src/google/protobuf/compiler/code_generator.cc",
         "src/google/protobuf/compiler/command_line_interface.cc",
+        "src/google/protobuf/compiler/c/c_generator.cc",
         "src/google/protobuf/compiler/cpp/cpp_enum.cc",
         "src/google/protobuf/compiler/cpp/cpp_enum_field.cc",
         "src/google/protobuf/compiler/cpp/cpp_extension.cc",

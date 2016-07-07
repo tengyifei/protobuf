@@ -31,6 +31,7 @@
 // Author: kenton@google.com (Kenton Varda)
 
 #include <google/protobuf/compiler/command_line_interface.h>
+#include <google/protobuf/compiler/c/c_generator.h>
 #include <google/protobuf/compiler/cpp/cpp_generator.h>
 #include <google/protobuf/compiler/python/python_generator.h>
 #include <google/protobuf/compiler/java/java_generator.h>
@@ -46,6 +47,11 @@ int main(int argc, char* argv[]) {
 
   google::protobuf::compiler::CommandLineInterface cli;
   cli.AllowPlugins("protoc-");
+
+  // Proto2 C
+  google::protobuf::compiler::c::CGenerator c_generator;
+  cli.RegisterGenerator("--c_out", "--c_opt", &c_generator,
+                        "Generate C header and source.");
 
   // Proto2 C++
   google::protobuf::compiler::cpp::CppGenerator cpp_generator;

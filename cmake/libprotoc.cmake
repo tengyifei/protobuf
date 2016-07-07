@@ -1,6 +1,7 @@
 set(libprotoc_files
   ${protobuf_source_dir}/src/google/protobuf/compiler/code_generator.cc
   ${protobuf_source_dir}/src/google/protobuf/compiler/command_line_interface.cc
+  ${protobuf_source_dir}/src/google/protobuf/compiler/c/c_generator.cc
   ${protobuf_source_dir}/src/google/protobuf/compiler/cpp/cpp_enum.cc
   ${protobuf_source_dir}/src/google/protobuf/compiler/cpp/cpp_enum_field.cc
   ${protobuf_source_dir}/src/google/protobuf/compiler/cpp/cpp_extension.cc
