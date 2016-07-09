@@ -36,41 +36,14 @@ namespace c {
     return Join(names, ",");
   }
 
-  static const char* kFirstInsertionPointName = "first_mock_insertion_point";
-  static const char* kSecondInsertionPointName = "second_mock_insertion_point";
   static const char* kFirstInsertionPoint =
     "// @@protoc_insertion_point(first_mock_insertion_point) is here\n";
   static const char* kSecondInsertionPoint =
     "  // @@protoc_insertion_point(second_mock_insertion_point) is here\n";
 
-  CGenerator::CGenerator(const string& name)
-    : name_(name) {}
-
-  CGenerator::CGenerator()
-    : name_("c_generator") {}
+  CGenerator::CGenerator() {}
 
   CGenerator::~CGenerator() {}
-
-  void CGenerator::ExpectGenerated(
-    const string& name,
-    const string& parameter,
-    const string& insertions,
-    const string& file,
-    const string& first_message_name,
-    const string& first_parsed_file_name,
-    const string& output_directory) {
-    string content;
-
-    vector<string> lines = Split(content, "\n", true);
-
-    while (!lines.empty() && lines.back().empty()) {
-      lines.pop_back();
-    }
-    for (int i = 0; i < lines.size(); i++) {
-      lines[i] += "\n";
-    }
-
-  }
 
   bool CGenerator::Generate(
     const FileDescriptor* file,
@@ -111,67 +84,35 @@ namespace c {
       }
     }
 
-    if (HasPrefixString(parameter, "insert=")) {
-      vector<string> insert_into;
-      SplitStringUsing(StripPrefixString(parameter, "insert="),
-                       ",", &insert_into);
+    {
+      google::protobuf::scoped_ptr<io::ZeroCopyOutputStream> output(
+        context->Open(GetOutputFileName(file) + ".h"));
 
-      for (int i = 0; i < insert_into.size(); i++) {
-        {
-          google::protobuf::scoped_ptr<io::ZeroCopyOutputStream> output(context->OpenForInsert(
-            GetOutputFileName(insert_into[i], file), kFirstInsertionPointName));
-          io::Printer printer(output.get(), '$');
-          printer.PrintRaw(GetOutputFileContent(name_, "first_insert",
-                                                file, context));
-          if (printer.failed()) {
-            *error = "MockCodeGenerator detected write error.";
-            return false;
-          }
-        }
+      io::Printer printer(output.get(), '$');
+      printer.PrintRaw(GetOutputFileContent(parameter,
+                                            file, context));
+      printer.PrintRaw(kFirstInsertionPoint);
+      printer.PrintRaw(kSecondInsertionPoint);
 
-        {
-          google::protobuf::scoped_ptr<io::ZeroCopyOutputStream> output(
-            context->OpenForInsert(GetOutputFileName(insert_into[i], file),
-                                   kSecondInsertionPointName));
-          io::Printer printer(output.get(), '$');
-          printer.PrintRaw(GetOutputFileContent(name_, "second_insert",
-                                                file, context));
-          if (printer.failed()) {
-            *error = "MockCodeGenerator detected write error.";
-            return false;
-          }
-        }
+      if (printer.failed()) {
+        *error = "MockCodeGenerator detected write error.";
+        return false;
       }
-    } else {
-      {
-        google::protobuf::scoped_ptr<io::ZeroCopyOutputStream> output(
-          context->Open(GetOutputFileName(name_, file) + ".h"));
+    }
 
-        io::Printer printer(output.get(), '$');
-        printer.PrintRaw(GetOutputFileContent(name_, parameter,
-                                              file, context));
-        printer.PrintRaw(kFirstInsertionPoint);
-        printer.PrintRaw(kSecondInsertionPoint);
+    {
+      google::protobuf::scoped_ptr<io::ZeroCopyOutputStream> output(
+        context->Open(GetOutputFileName(file) + ".c"));
 
-        if (printer.failed()) {
-          *error = "MockCodeGenerator detected write error.";
-          return false;
-        }
-      }
-      {
-        google::protobuf::scoped_ptr<io::ZeroCopyOutputStream> output(
-          context->Open(GetOutputFileName(name_, file) + ".c"));
+      io::Printer printer(output.get(), '$');
+      printer.PrintRaw(GetOutputFileContent(parameter,
+                                            file, context));
+      printer.PrintRaw(kFirstInsertionPoint);
+      printer.PrintRaw(kSecondInsertionPoint);
 
-        io::Printer printer(output.get(), '$');
-        printer.PrintRaw(GetOutputFileContent(name_, parameter,
-                                              file, context));
-        printer.PrintRaw(kFirstInsertionPoint);
-        printer.PrintRaw(kSecondInsertionPoint);
-
-        if (printer.failed()) {
-          *error = "MockCodeGenerator detected write error.";
-          return false;
-        }
+      if (printer.failed()) {
+        *error = "MockCodeGenerator detected write error.";
+        return false;
       }
     }
 
@@ -190,16 +131,6 @@ namespace c {
     return false;
   }
 
-  inline bool StripPrefix(string *name, const string &prefix) {
-    if (name->length() >= prefix.length()) {
-      if (name->substr(0, prefix.size()) == prefix) {
-        *name = name->substr(prefix.size());
-        return true;
-      }
-    }
-    return false;
-  }
-
   inline string StripProto(string filename) {
     if (!StripSuffix(&filename, ".protodevel")) {
       StripSuffix(&filename, ".proto");
@@ -207,38 +138,34 @@ namespace c {
     return filename;
   }
 
-  string CGenerator::GetOutputFileName(const string& generator_name,
-                                              const FileDescriptor* file) {
-    return GetOutputFileName(generator_name, file->name());
+  string CGenerator::GetOutputFileName(const FileDescriptor* file) {
+    return GetOutputFileName(file->name());
   }
 
-  string CGenerator::GetOutputFileName(const string& generator_name,
-                                              const string& file) {
+  string CGenerator::GetOutputFileName(const string& file) {
     return StripProto(file) + ".pbc";
   }
 
   string CGenerator::GetOutputFileContent(
-    const string& generator_name,
     const string& parameter,
     const FileDescriptor* file,
     GeneratorContext *context) {
     vector<const FileDescriptor*> all_files;
     context->ListParsedFiles(&all_files);
     return GetOutputFileContent(
-      generator_name, parameter, file->name(),
+      parameter, file->name(),
       CommaSeparatedList(all_files),
       file->message_type_count() > 0 ?
       file->message_type(0)->name() : "(none)");
   }
 
   string CGenerator::GetOutputFileContent(
-    const string& generator_name,
     const string& parameter,
     const string& file,
     const string& parsed_file_list,
     const string& first_message_name) {
-    return strings::Substitute("// $0: $1, $2, $3, $4\n",
-                               generator_name, parameter, file,
+    return strings::Substitute("// $0, $1, $2, $3\n",
+                               parameter, file,
                                first_message_name, parsed_file_list);
   }
 
